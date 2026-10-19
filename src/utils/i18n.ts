@@ -641,8 +641,8 @@ const zhCN: Record<string, string> = {
   "Enter a vault path first": "请先输入知识库路径",
   "Each provider has an auth mode, API URL, and one or more model variants.":
     "每个服务商有一个认证模式、API URL 和一个或多个模型变体。",
-  "Choose a preset above, or switch to Customized to enter a full base URL or endpoint manually.":
-    '选择上方的预设，或切换到"自定义"以手动输入完整的基础 URL 或端点。',
+  "Choose a preset above, or keep Customized and pick a URL template. You can also paste a full base URL or endpoint manually.":
+    '选择上方的预设，或保持"自定义"并选择一个 URL 模板。也可以手动粘贴完整的基础 URL 或端点。',
   "codex auth usually uses https://chatgpt.com/backend-api/codex/responses":
     "codex 认证通常使用 https://chatgpt.com/backend-api/codex/responses",
   "Legacy direct ChatGPT/Codex backend mode. Existing users can keep using it in this release. New users should use Codex App Server. Planned for deprecation in a future release after app-server validation.":
@@ -666,6 +666,19 @@ const zhCN: Record<string, string> = {
   Protocol: "协议",
   "API protocol override": "API 协议覆盖",
   "API URL": "API URL",
+  "URL template": "URL 模板",
+  "Custom URL (manual entry)": "自定义 URL（手动输入）",
+  "A URL template fills in the endpoint and matches the API protocol automatically.":
+    "URL 模板会自动填入端点并匹配 API 协议。",
+  "Default endpoint": "默认端点",
+  "Standard · OpenAI-compatible chat": "标准 · OpenAI 兼容对话",
+  "Standard · OpenAI-compatible chat endpoint": "标准 · OpenAI 兼容对话端点",
+  "Standard · Responses API": "标准 · Responses API",
+  "Standard · Anthropic Messages": "标准 · Anthropic Messages",
+  "Go tier · OpenAI-compatible chat": "Go 套餐 · OpenAI 兼容对话",
+  "Go tier · OpenAI-compatible chat endpoint": "Go 套餐 · OpenAI 兼容对话端点",
+  "Go tier · Responses API": "Go 套餐 · Responses API",
+  "Go tier · Anthropic Messages": "Go 套餐 · Anthropic Messages",
   "API Key": "API 密钥",
   "codex auth": "codex 认证",
   "Codex Auth": "Codex 认证",

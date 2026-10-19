@@ -2,6 +2,7 @@ import { assert } from "chai";
 import {
   describeAgentCapabilityClass,
   getAgentCapabilityClass,
+  inferProviderProtocolFromEndpoint,
   normalizeProviderProtocolForAuthMode,
 } from "../src/utils/providerProtocol";
 
@@ -142,6 +143,51 @@ describe("providerProtocol", function () {
         getAgentCapabilityClass({ toolCalls: false, fileInputs: false }),
       ),
       "chat-only",
+    );
+  });
+});
+
+describe("inferProviderProtocolFromEndpoint", function () {
+  it("infers Anthropic Messages from a messages endpoint", function () {
+    assert.equal(
+      inferProviderProtocolFromEndpoint(
+        "https://opencode.ai/zen/go/v1/messages",
+      ),
+      "anthropic_messages",
+    );
+  });
+
+  it("infers OpenAI-compatible chat from a chat completions endpoint", function () {
+    assert.equal(
+      inferProviderProtocolFromEndpoint(
+        "https://opencode.ai/zen/go/v1/chat/completions",
+      ),
+      "openai_chat_compat",
+    );
+  });
+
+  it("infers Responses API from a responses endpoint", function () {
+    assert.equal(
+      inferProviderProtocolFromEndpoint(
+        "https://opencode.ai/zen/go/v1/responses",
+      ),
+      "responses_api",
+    );
+  });
+
+  it("returns undefined for a bare base URL", function () {
+    assert.isUndefined(
+      inferProviderProtocolFromEndpoint("https://opencode.ai/zen/go/v1"),
+    );
+    assert.isUndefined(inferProviderProtocolFromEndpoint(undefined));
+  });
+
+  it("infers Gemini Native from a model generateContent URL", function () {
+    assert.equal(
+      inferProviderProtocolFromEndpoint(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      ),
+      "gemini_native",
     );
   });
 });

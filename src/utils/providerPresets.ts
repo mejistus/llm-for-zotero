@@ -42,6 +42,23 @@ export function resolveProviderPresetId(group: {
   );
 }
 
+/**
+ * Freeze the provider currently shown in the card before its URL is edited.
+ * A fresh group displays Customized with no override; without pinning,
+ * typing a URL that matches a preset rewrites the card identity on the next
+ * render and silently changes the protocol.
+ */
+export function pinProviderPresetIdOnUrlEdit(group: {
+  authMode: string;
+  apiBase?: string;
+  presetIdOverride?: ProviderPresetId;
+}): ProviderPresetId {
+  return (
+    normalizeProviderPresetId(group.presetIdOverride) ??
+    resolveProviderPresetId(group)
+  );
+}
+
 export type ProviderPreset = {
   id: SupportedProviderPresetId;
   label: string;
@@ -50,6 +67,11 @@ export type ProviderPreset = {
   supportedProtocols: ProviderProtocol[];
   helperText: string;
   matches: (apiBase: string) => boolean;
+  urlTemplates?: Array<{
+    url: string;
+    protocol: ProviderProtocol;
+    label: string;
+  }>;
   /** When true, prefer /v1/responses over /v1/chat/completions when calling the API. */
   supportsResponsesEndpoint?: boolean;
   /** File uploads are a separate capability from Responses inference. */
@@ -459,6 +481,48 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     helperText:
       "Gateway for a curated set of models from several vendors, billed on one key.",
     matches: makeHostAndPathMatcher(["opencode.ai"], OPENCODE_PATHS),
+    urlTemplates: [
+      {
+        url: "https://opencode.ai/zen/v1",
+        protocol: "openai_chat_compat",
+        label: "Standard · OpenAI-compatible chat",
+      },
+      {
+        url: "https://opencode.ai/zen/v1/chat/completions",
+        protocol: "openai_chat_compat",
+        label: "Standard · OpenAI-compatible chat endpoint",
+      },
+      {
+        url: "https://opencode.ai/zen/v1/responses",
+        protocol: "responses_api",
+        label: "Standard · Responses API",
+      },
+      {
+        url: "https://opencode.ai/zen/v1/messages",
+        protocol: "anthropic_messages",
+        label: "Standard · Anthropic Messages",
+      },
+      {
+        url: "https://opencode.ai/zen/go/v1",
+        protocol: "openai_chat_compat",
+        label: "Go tier · OpenAI-compatible chat",
+      },
+      {
+        url: "https://opencode.ai/zen/go/v1/chat/completions",
+        protocol: "openai_chat_compat",
+        label: "Go tier · OpenAI-compatible chat endpoint",
+      },
+      {
+        url: "https://opencode.ai/zen/go/v1/responses",
+        protocol: "responses_api",
+        label: "Go tier · Responses API",
+      },
+      {
+        url: "https://opencode.ai/zen/go/v1/messages",
+        protocol: "anthropic_messages",
+        label: "Go tier · Anthropic Messages",
+      },
+    ],
     supportsEmbeddings: false,
   },
   {
@@ -544,6 +608,64 @@ export function getProviderPresetProtocolOptions(
     ...preset.supportedProtocols,
     ...GENERAL_API_KEY_PROTOCOL_OPTIONS,
   ]);
+}
+
+export type ProviderUrlTemplate = {
+  presetId: SupportedProviderPresetId;
+  presetLabel: string;
+  label: string;
+  url: string;
+  protocol: ProviderProtocol;
+};
+
+function normalizeTemplateUrl(url: string): string {
+  return typeof url === "string" ? url.trim().replace(/\/+$/, "") : "";
+}
+
+function collectPresetUrlTemplates(
+  preset: ProviderPreset,
+): ProviderUrlTemplate[] {
+  const templates: ProviderUrlTemplate[] = [];
+  for (const template of preset.urlTemplates || []) {
+    templates.push({
+      presetId: preset.id,
+      presetLabel: preset.label,
+      label: template.label,
+      url: template.url,
+      protocol: template.protocol,
+    });
+  }
+  templates.push({
+    presetId: preset.id,
+    presetLabel: preset.label,
+    label: "Default endpoint",
+    url: preset.defaultApiBase,
+    protocol: preset.defaultProtocol,
+  });
+  return templates;
+}
+
+export function getProviderUrlTemplates(
+  presetId: ProviderPresetId,
+): ProviderUrlTemplate[] {
+  const presets =
+    presetId === "customized"
+      ? PROVIDER_PRESETS.filter(
+          (preset) =>
+            preset.id !== "copilot" && preset.requiresApiKey !== false,
+        )
+      : [getProviderPreset(presetId)];
+  const seen = new Set<string>();
+  const templates: ProviderUrlTemplate[] = [];
+  for (const preset of presets) {
+    for (const template of collectPresetUrlTemplates(preset)) {
+      const normalizedUrl = normalizeTemplateUrl(template.url);
+      if (!normalizedUrl || seen.has(normalizedUrl)) continue;
+      seen.add(normalizedUrl);
+      templates.push({ ...template, url: normalizedUrl });
+    }
+  }
+  return templates;
 }
 
 export function detectProviderPreset(apiBase: string): ProviderPresetId {

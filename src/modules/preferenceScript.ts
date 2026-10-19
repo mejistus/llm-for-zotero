@@ -83,12 +83,15 @@ import {
   detectProviderPreset,
   getProviderPreset,
   getProviderPresetProtocolOptions,
+  getProviderUrlTemplates,
+  pinProviderPresetIdOnUrlEdit,
   providerPresetRequiresApiKey,
   normalizeProviderPresetId,
   resolveProviderPresetId,
   type ProviderPresetId,
 } from "../utils/providerPresets";
 import {
+  inferProviderProtocolFromEndpoint,
   isProviderProtocol,
   normalizeProviderProtocolForAuthMode,
   getProviderProtocolSpec,
@@ -335,7 +338,7 @@ const setPref = (key: PrefKey, value: string) =>
   Zotero.Prefs.set(pref(key), value, true);
 
 const CUSTOMIZED_API_HELPER_TEXT =
-  "Choose a preset above, or switch to Customized to enter a full base URL or endpoint manually.";
+  "Choose a preset above, or keep Customized and pick a URL template. You can also paste a full base URL or endpoint manually.";
 const LEGACY_CODEX_AUTH_HELPER_TEXT =
   "Uses credentials from `codex login` to call the Codex backend directly through the llm-for-zotero harness. This convenient legacy mode does not provide App Server sessions, MCP or runtime management, sandbox controls, approvals, or permission settings. Use Codex App Server for the full Codex runtime experience.";
 const CODEX_APP_SERVER_HELPER_TEXT =
@@ -1936,6 +1939,8 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       }
 
       // ── Provider preset ─────────────────────────────────────────
+      let urlTemplateWrap: HTMLDivElement | undefined;
+      let syncUrlTemplateSelection: (() => void) | undefined;
       const {
         wrap: providerPresetWrap,
         label: providerPresetLabel,
@@ -1984,6 +1989,76 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         providerPresetControl.append(providerPresetSelect);
       }
 
+      if (group.authMode === "api_key" && isCustomizedPreset) {
+        const {
+          wrap: urlTemplateFieldWrap,
+          label: urlTemplateLabel,
+          control: urlTemplateControl,
+        } = prefField(doc, t("URL template"));
+        const urlTemplateSelect = createElement(
+          doc,
+          "select",
+          "llm-pref-select",
+        );
+        urlTemplateSelect.id = `${config.addonRef}-url-template-${group.id}`;
+        urlTemplateLabel.setAttribute("for", urlTemplateSelect.id);
+
+        const manualOption = el(doc, "option") as HTMLOptionElement;
+        manualOption.value = "";
+        manualOption.textContent = t("Custom URL (manual entry)");
+        urlTemplateSelect.appendChild(manualOption);
+
+        const urlTemplates = getProviderUrlTemplates(selectedPresetId);
+        const optgroups = new Map<string, HTMLOptGroupElement>();
+        for (const urlTemplate of urlTemplates) {
+          let optgroup = optgroups.get(urlTemplate.presetId);
+          if (!optgroup) {
+            optgroup = el(doc, "optgroup") as HTMLOptGroupElement;
+            optgroup.label = t(urlTemplate.presetLabel);
+            optgroups.set(urlTemplate.presetId, optgroup);
+            urlTemplateSelect.appendChild(optgroup);
+          }
+          const option = el(doc, "option") as HTMLOptionElement;
+          option.value = urlTemplate.url;
+          option.textContent = `${t(urlTemplate.label)} — ${urlTemplate.url}`;
+          optgroup.appendChild(option);
+        }
+        const syncSelection = () => {
+          const currentApiBase = (group.apiBase || "")
+            .trim()
+            .replace(/\/+$/, "");
+          const matchedTemplate = urlTemplates.find(
+            (urlTemplate) => urlTemplate.url === currentApiBase,
+          );
+          urlTemplateSelect.value = matchedTemplate?.url || "";
+        };
+        syncSelection();
+        syncUrlTemplateSelection = syncSelection;
+
+        urlTemplateSelect.addEventListener("change", () => {
+          const chosenTemplate = urlTemplates.find(
+            (urlTemplate) => urlTemplate.url === urlTemplateSelect.value,
+          );
+          if (!chosenTemplate) return;
+          group.apiBase = chosenTemplate.url;
+          group.providerProtocol = chosenTemplate.protocol;
+          group.presetIdOverride = "customized";
+          persistGroups(groups);
+          setTimeout(() => rerender(), 0);
+        });
+
+        urlTemplateControl.append(
+          urlTemplateSelect,
+          prefHint(
+            doc,
+            t(
+              "A URL template fills in the endpoint and matches the API protocol automatically.",
+            ),
+          ),
+        );
+        urlTemplateWrap = urlTemplateFieldWrap;
+      }
+
       // ── API URL ──────────────────────────────────────────────────
       const {
         wrap: apiUrlWrap,
@@ -2024,10 +2099,13 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       const modelPickerSyncers: Array<() => void> = [];
       apiUrlInput.addEventListener("input", () => {
         if (group.authMode === "webchat") return;
-        if (selectedPresetId !== "customized" && !group.presetIdOverride) {
-          group.presetIdOverride = selectedPresetId;
+        if (!group.presetIdOverride) {
+          group.presetIdOverride = pinProviderPresetIdOnUrlEdit(group);
         }
         group.apiBase = apiUrlInput.value;
+        const inferred = inferProviderProtocolFromEndpoint(group.apiBase);
+        if (inferred) group.providerProtocol = inferred;
+        syncUrlTemplateSelection?.();
         persistGroups(groups);
         syncAddProviderBtn();
         for (const sync of modelPickerSyncers) sync();
@@ -3083,6 +3161,7 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
           connectionSection(doc, [
             authModeWrap,
             providerPresetWrap,
+            ...(urlTemplateWrap ? [urlTemplateWrap] : []),
             apiUrlWrap,
             apiKeyWrap,
           ]),

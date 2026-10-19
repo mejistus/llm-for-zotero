@@ -144,6 +144,38 @@ describe("explicit provider selection persistence", function () {
     );
   });
 
+  it("keeps a customized OpenCode messages endpoint customized and Anthropic", function () {
+    const group: StandardModelProviderGroup = {
+      ...localGroup(),
+      id: "opencode-go-customized",
+      apiBase: "https://opencode.ai/zen/go/v1/messages",
+      apiKey: "test-key",
+      presetIdOverride: "customized",
+      providerProtocol: "anthropic_messages",
+      models: [
+        {
+          id: "opencode-go-model",
+          model: "deepseek-v4.1-flash",
+          temperature: 0.3,
+          outputTokenLimit: { mode: "auto" },
+        },
+      ],
+    };
+    setModelProviderGroups([group]);
+    const [saved] = getModelProviderGroups();
+    const [runtime] = getRuntimeModelEntries();
+    assert.equal(saved.presetIdOverride, "customized");
+    assert.equal(resolveProviderPresetId(saved), "customized");
+    assert.equal(runtime.providerProtocol, "anthropic_messages");
+    assert.equal(
+      resolveProviderTransportEndpoint({
+        apiBase: runtime.apiBase,
+        protocol: runtime.providerProtocol,
+      }),
+      "https://opencode.ai/zen/go/v1/messages",
+    );
+  });
+
   it("keeps a per-model protocol override above the selected preset", function () {
     const group = localGroup();
     group.models[0].providerProtocol = "responses_api";

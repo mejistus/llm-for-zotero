@@ -154,6 +154,33 @@ function isOpenAIChatCompletionsBase(apiBase: string | undefined): boolean {
   return Boolean(pathname && pathname.endsWith("/chat/completions"));
 }
 
+export function inferProviderProtocolFromEndpoint(
+  apiBase: string | undefined,
+): ProviderProtocol | undefined {
+  const pathname = getApiBasePathname(apiBase);
+  if (!pathname || pathname === "/") return undefined;
+  if (
+    pathname.endsWith("/messages") ||
+    pathname.endsWith("/anthropic") ||
+    pathname.endsWith("/anthropic/v1")
+  ) {
+    return "anthropic_messages";
+  }
+  if (pathname.endsWith("/chat/completions")) {
+    return "openai_chat_compat";
+  }
+  if (pathname.endsWith("/responses")) {
+    return "responses_api";
+  }
+  if (
+    pathname.endsWith(":generatecontent") ||
+    pathname.endsWith(":streamgeneratecontent")
+  ) {
+    return "gemini_native";
+  }
+  return undefined;
+}
+
 export function inferLegacyProviderProtocol(params: {
   authMode?: string;
   apiBase?: string;
