@@ -621,8 +621,10 @@ manage OpenCode logins, providers, or other user-level settings.
 1. Install OpenCode and authenticate it (`opencode auth login`). The
    `opencode` command must be on `PATH`, or point the provider at its absolute
    path.
-2. Open `Preferences` -> `llm-for-zotero` -> **AI Providers** and add a
-   provider.
+2. Open `Preferences` -> `llm-for-zotero`. The **Agent** tab now has an
+   **OpenCode** row; its switch creates a default OpenCode provider and its
+   **Configure OpenCode provider** button jumps to the provider card. You can
+   also add one directly in **AI Providers**.
 3. Set **Auth mode** to **OpenCode CLI**. Leave **OpenCode CLI path** blank to
    resolve `opencode` from `PATH`.
 4. Click **Fetch OpenCode models** and pick a model, for example

@@ -43,6 +43,7 @@ describe("Agent preference tab layout", function () {
       'data-llm-agent-row="original"',
       'data-llm-agent-row="codex"',
       'data-llm-agent-row="claude"',
+      'data-llm-agent-row="opencode"',
       'data-llm-agent-row="notes"',
     ]);
 
@@ -58,12 +59,13 @@ describe("Agent preference tab layout", function () {
     }
   });
 
-  it("enables all three runtimes with the same switch idiom", function () {
+  it("enables all four runtimes with the same switch idiom", function () {
     const panel = agentPanel();
     for (const id of [
       "__addonRef__-enable-agent-mode",
       "__addonRef__-codex-app-server-enable",
       "__addonRef__-agent-backend-mode",
+      "__addonRef__-opencode-enable",
     ]) {
       assert.include(elementById(panel, id), 'type="checkbox"', id);
     }

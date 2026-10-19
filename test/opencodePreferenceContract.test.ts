@@ -56,6 +56,17 @@ describe("OpenCode CLI preference contract", function () {
     }
   });
 
+  it("renders OpenCode as an Agent-tab runtime entry", function () {
+    const markup = flattened("addon/content/preferences.xhtml");
+    assert.include(markup, 'data-llm-agent-row="opencode"');
+    assert.include(markup, "__addonRef__-opencode-enable");
+    assert.include(markup, "__addonRef__-opencode-configure");
+    assert.include(markup, "Configure OpenCode provider");
+    const script = flattened("src/modules/preferenceScript.ts");
+    assert.include(script, "ensureOpenCodeProvider");
+    assert.include(script, "setOpenCodeModeEnabled");
+  });
+
   it("documents the Agent mode and native MCP requirements", function () {
     const script = flattened("src/modules/preferenceScript.ts");
     assert.include(

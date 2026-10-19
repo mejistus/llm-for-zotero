@@ -11,7 +11,11 @@ import { WEBCHAT_TARGETS } from "../webchat/types";
 import { DEFAULT_OPENCODE_MODEL } from "../opencode/constants";
 import { loadOpenCodeModels } from "../opencode/models";
 import { runOpenCodeConnectionTest } from "../opencode/process";
-import { setOpenCodeAutoApproveEnabled } from "../opencode/prefs";
+import {
+  isOpenCodeModeEnabled,
+  setOpenCodeAutoApproveEnabled,
+  setOpenCodeModeEnabled,
+} from "../opencode/prefs";
 import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_TEMPERATURE,
@@ -3752,6 +3756,15 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
   const claudeCodeEnableToggle = doc.querySelector(
     `#${config.addonRef}-agent-backend-mode`,
   ) as HTMLInputElement | null;
+  const openCodeEnableToggle = doc.querySelector(
+    `#${config.addonRef}-opencode-enable`,
+  ) as HTMLInputElement | null;
+  const openCodeConfigureButton = doc.querySelector(
+    `#${config.addonRef}-opencode-configure`,
+  ) as HTMLButtonElement | null;
+  const openCodeStatus = doc.querySelector(
+    `#${config.addonRef}-opencode-status`,
+  ) as HTMLSpanElement | null;
   const agentBridgeSettingsWrap = doc.querySelector(
     `#${config.addonRef}-agent-bridge-settings`,
   ) as HTMLDivElement | null;
@@ -4218,6 +4231,23 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         ? [claudeModel, selectedOptionLabel(agentPermissionModeSelect)]
         : [t("Off")],
     );
+    const openCodeOn = !!openCodeEnableToggle?.checked;
+    const openCodeProvider = groups.find(
+      (group) => group.authMode === "opencode_cli",
+    );
+    const openCodeModels =
+      openCodeProvider?.models
+        .map((entry) => entry.model.trim())
+        .filter(Boolean) || [];
+    setAgentRowSummary(
+      "opencode",
+      openCodeOn,
+      openCodeOn
+        ? openCodeModels.length
+          ? openCodeModels
+          : [t("Provider not configured")]
+        : [t("Off")],
+    );
     const notesPath = inputValue("obsidian-vault-path");
     setAgentRowSummary(
       "notes",
@@ -4260,6 +4290,62 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
     agentPanel.addEventListener("input", onAgentPanelEdit);
   }
   refreshAgentRowSummaries();
+
+  const ensureOpenCodeProvider = (): ModelProviderGroup | undefined => {
+    let provider = groups.find((group) => group.authMode === "opencode_cli");
+    if (!provider) {
+      const created = transitionProviderAuthMode(
+        createEmptyProviderGroup(),
+        "opencode_cli",
+      );
+      groups.push(created);
+      persistGroups(groups);
+      rerender();
+      provider = created;
+    }
+    return provider;
+  };
+  const applyOpenCodeUi = (enabled: boolean) => {
+    if (openCodeEnableToggle) openCodeEnableToggle.checked = enabled;
+    const provider = groups.find((group) => group.authMode === "opencode_cli");
+    if (openCodeStatus) {
+      openCodeStatus.textContent = !enabled
+        ? t("Off")
+        : provider
+          ? t("Configured. Select the OpenCode model in the chat header.")
+          : t("Not configured yet.");
+    }
+    refreshAgentRowSummaries();
+  };
+  const openCodeProviderConfigured = groups.some(
+    (group) => group.authMode === "opencode_cli",
+  );
+  const openCodeInitiallyEnabled =
+    isOpenCodeModeEnabled() || openCodeProviderConfigured;
+  if (openCodeInitiallyEnabled) setOpenCodeModeEnabled(true);
+  applyOpenCodeUi(openCodeInitiallyEnabled);
+  openCodeEnableToggle?.addEventListener("change", () => {
+    const enabled = !!openCodeEnableToggle.checked;
+    setOpenCodeModeEnabled(enabled);
+    if (enabled) ensureOpenCodeProvider();
+    applyOpenCodeUi(enabled);
+  });
+  openCodeConfigureButton?.addEventListener("click", () => {
+    const provider = ensureOpenCodeProvider();
+    const providerTab = doc.querySelector(
+      '[data-pref-tab="models"]',
+    ) as HTMLElement | null;
+    providerTab?.click();
+    if (!provider) return;
+    openProviderIds.add(provider.id);
+    rerender();
+    setTimeout(() => {
+      const card = doc.querySelector(
+        `[data-llm-provider-row="${provider.id}"]`,
+      ) as HTMLElement | null;
+      card?.scrollIntoView({ block: "start" });
+    }, 50);
+  });
 
   if (codexAppServerEnableToggle) {
     const applyCodexAppServerUi = (enabled: boolean) => {

@@ -14,6 +14,27 @@ function getPrefStore(): PrefStore | undefined {
     ?.Prefs;
 }
 
+export function isOpenCodeModeEnabled(): boolean {
+  try {
+    const value = getPrefStore()?.get?.(prefKey("enableOpenCodeMode"), true);
+    return value === true || `${value || ""}`.toLowerCase() === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function setOpenCodeModeEnabled(enabled: boolean): void {
+  try {
+    getPrefStore()?.set?.(
+      prefKey("enableOpenCodeMode"),
+      Boolean(enabled),
+      true,
+    );
+  } catch {
+    void 0;
+  }
+}
+
 export function isOpenCodeAutoApproveEnabled(): boolean {
   try {
     const value = getPrefStore()?.get?.(prefKey("openCodeAutoApprove"), true);

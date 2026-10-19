@@ -849,6 +849,12 @@ const zhCN: Record<string, string> = {
     "无法获取 OpenCode 模型，请直接输入模型名称。",
   "OpenCode CLI requires Agent mode.": "OpenCode CLI 需要 Agent 模式。",
   "Model name is required": "模型名称不能为空",
+  "Provider not configured": "服务商未配置",
+  "Configured. Select the OpenCode model in the chat header.":
+    "已配置。请在聊天头部选择 OpenCode 模型。",
+  "Not configured yet.": "尚未配置。",
+  "Configure OpenCode provider": "配置 OpenCode 服务商",
+  "Enable OpenCode": "启用 OpenCode",
   "Provider A": "服务商 A",
   "Provider B": "服务商 B",
   "Provider C": "服务商 C",
