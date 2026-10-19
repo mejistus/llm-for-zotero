@@ -64,6 +64,7 @@ export type ModelProviderAuthMode =
   | "codex_auth"
   | "codex_app_server"
   | "copilot_auth"
+  | "opencode_cli"
   | "webchat"; // [webchat]
 
 export type ConfigurableModelProviderAuthMode = Exclude<
@@ -80,6 +81,8 @@ export type StandardModelProviderGroup = {
   models: ModelProviderModel[];
   /** When "customized", UI shows Customized and allows editing URL; when undefined, preset is derived from apiBase. */
   presetIdOverride?: ProviderPresetId;
+  /** OpenCode CLI: pass --auto so tools run without an interactive prompt. */
+  openCodeAutoApprove?: boolean;
 };
 
 export type CodexDirectModelRow = {
@@ -223,6 +226,7 @@ function normalizeProviderAuthMode(value: unknown): ModelProviderAuthMode {
   if (value === "codex_auth") return "codex_auth";
   if (value === "codex_app_server") return "codex_app_server";
   if (value === "copilot_auth") return "copilot_auth";
+  if (value === "opencode_cli") return "opencode_cli";
   if (value === "webchat") return "webchat"; // [webchat]
   return "api_key";
 }
@@ -344,6 +348,7 @@ type RawProviderGroup = {
   codexDirectModel?: unknown;
   selectedModel?: unknown;
   presetIdOverride?: unknown;
+  openCodeAutoApprove?: unknown;
 };
 
 function normalizeCodexDirectModelRow(
@@ -484,6 +489,9 @@ function normalizeGroup(
     }),
     models,
     presetIdOverride: normalizeProviderPresetId(rawGroup.presetIdOverride),
+    ...(rawGroup.openCodeAutoApprove === true
+      ? { openCodeAutoApprove: true }
+      : {}),
   };
 }
 
@@ -656,6 +664,7 @@ function resolveRuntimeProviderProtocol(
   modelEntry?: ModelProviderModel,
 ): ProviderProtocol {
   const authMode = normalizeProviderAuthMode(group.authMode);
+  if (authMode === "opencode_cli") return "openai_chat_compat";
   const presetId = resolveProviderPresetId(group);
   const fallback =
     presetId === "customized"
@@ -913,7 +922,11 @@ export function migrateApiBaseForAuthModeChange(
   apiBase: string,
 ): string {
   if (nextAuthMode === "codex_auth") return CODEX_DIRECT_RESPONSES_URL;
-  if (previousAuthMode === "codex_auth") {
+  if (nextAuthMode === "opencode_cli") return "";
+  if (
+    previousAuthMode === "codex_auth" ||
+    previousAuthMode === "opencode_cli"
+  ) {
     return "";
   }
   const trimmed = apiBase.trim();
@@ -1040,7 +1053,9 @@ export function getRuntimeModelEntries(): RuntimeModelEntry[] {
         ? `${baseProviderLabel} (app server)`
         : authMode === "copilot_auth"
           ? `${baseProviderLabel} (copilot auth)`
-          : baseProviderLabel;
+          : authMode === "opencode_cli"
+            ? "OpenCode"
+            : baseProviderLabel;
     const normalizedCounts = new Map<string, number>();
     for (const modelEntry of group.models) {
       const modelName = modelEntry.model.trim();
@@ -1053,7 +1068,9 @@ export function getRuntimeModelEntries(): RuntimeModelEntry[] {
           ? `codex-app/${modelName}`
           : authMode === "copilot_auth"
             ? `copilot/${modelName}`
-            : modelName;
+            : authMode === "opencode_cli"
+              ? `opencode/${modelName}`
+              : modelName;
       const providerProtocol = resolveRuntimeProviderProtocol(
         group,
         modelEntry,

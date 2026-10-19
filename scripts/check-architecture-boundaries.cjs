@@ -59,6 +59,7 @@ const LAYERS = [
       // Conversation backends the agent layer drives and imports back.
       "src/claudeCode/",
       "src/codexAppServer/",
+      "src/opencode/",
       "src/webchat/",
     ],
   },

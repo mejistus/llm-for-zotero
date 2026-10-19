@@ -43,6 +43,7 @@ export type EffectiveRequestConfig = {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelEntryId?: string;

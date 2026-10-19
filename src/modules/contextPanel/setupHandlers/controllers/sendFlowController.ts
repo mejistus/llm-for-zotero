@@ -1,4 +1,5 @@
 import { appLogger } from "../../../../core/logging";
+import { t } from "../../../../utils/i18n";
 import { MAX_SELECTED_IMAGES } from "../../constants";
 import type {
   LocalDocumentResource,
@@ -49,6 +50,7 @@ type SelectedProfile = {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
 };
@@ -179,6 +181,7 @@ type SendFlowControllerDeps = {
     attachments: ChatAttachment[],
   ) => string;
   isAgentMode: () => boolean;
+  enableAgentModeForTurn?: () => boolean;
   isGlobalMode: () => boolean;
   isClaudeConversationSystem: () => boolean;
   isCodexConversationSystem: () => boolean;
@@ -355,6 +358,21 @@ export function createSendFlowController(deps: SendFlowControllerDeps): {
       deps.onComposerDraftRestored?.();
     };
     try {
+      // OpenCode CLI runs through the agent runtime only; a plain chat turn
+      // would fall back to a direct HTTP request it cannot serve.
+      if (
+        panel.selectedProfile?.authMode === "opencode_cli" &&
+        !panel.isAgentMode
+      ) {
+        if (!deps.enableAgentModeForTurn?.()) {
+          deps.setStatusMessage?.(
+            t("OpenCode CLI requires Agent mode."),
+            "error",
+          );
+          return;
+        }
+        panel.isAgentMode = true;
+      }
       if (shouldClearDraft) {
         deps.inputBox.value = "";
         deps.onComposerDraftCleared?.();

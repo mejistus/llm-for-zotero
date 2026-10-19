@@ -53,6 +53,7 @@ How to do a library chat literature review with llm-for-zotero agent
 - [WebChat Setup](#webchat-setup-chatgpt-web-sync)
 - [Codex Setup](#codex-setup-chatgpt-plus-subscribers)
 - [Claude Code Setup](#claude-code-setup-experimental)
+- [OpenCode Setup](#opencode-setup)
 - [MinerU PDF Parsing](#mineru-pdf-parsing)
 - [Privacy and Data Flow](#privacy-and-data-flow)
 - [Roadmap](#roadmap)
@@ -71,7 +72,7 @@ How to do a library chat literature review with llm-for-zotero agent
   note-editing, and organization workflows.
 - Search the current public web and read relevant pages with Tavily, with source links attached to the answer.
 - Use your preferred backend: API keys, local models, ChatGPT WebChat, Codex App
-  Server, or Claude Code.
+  Server, Claude Code, or OpenCode CLI.
 
 <a id="installation"></a>
 <a id="usage-guide"></a>
@@ -609,6 +610,43 @@ The model preference remains editable when discovery is unavailable.
 Claude Code is responsible for resolving or rejecting the selected value and for applying provider or proxy configuration.
 
 </details>
+
+## OpenCode Setup
+
+Runs the local [OpenCode](https://opencode.ai) CLI as an agent backend. OpenCode
+uses its own authentication and model configuration. The plugin only supplies
+the Zotero MCP server and a per-conversation working directory; it does not
+manage OpenCode logins, providers, or other user-level settings.
+
+1. Install OpenCode and authenticate it (`opencode auth login`). The
+   `opencode` command must be on `PATH`, or point the provider at its absolute
+   path.
+2. Open `Preferences` -> `llm-for-zotero` -> **AI Providers** and add a
+   provider.
+3. Set **Auth mode** to **OpenCode CLI**. Leave **OpenCode CLI path** blank to
+   resolve `opencode` from `PATH`.
+4. Click **Fetch OpenCode models** and pick a model, for example
+   `opencode-go/deepseek-v4.1-flash`. You can also type a model ID directly.
+5. Click **Test** to verify the CLI and model, then enable **Agent mode** and
+   select the OpenCode model in the chat header.
+
+**Auto-approve tools (--auto)** is off for a new provider unless the global
+auto-approve default was already enabled. When off, OpenCode can search and read
+Zotero through the MCP tools, but shell commands, file edits, web fetches, and
+Zotero write tools are denied. Turning it on passes `--auto` and allows those
+tools, so enable it only when you trust the model and the conversation. The
+global default applies to newly added OpenCode providers; each provider keeps
+its own setting.
+
+Zotero library and paper tools require the native MCP tools toggle in
+`Preferences` -> **Agent** (the shared **Zotero MCP tools** setting used by
+native Codex and Claude Code). Without it, OpenCode runs without Zotero library
+access.
+
+OpenCode conversations reuse the normal Zotero chat history and are stored per
+conversation. Editing or retrying a turn starts a fresh OpenCode session. In
+this first release, OpenCode tool activity is not yet shown as Zotero trace
+rows.
 
 ## MinerU PDF Parsing
 

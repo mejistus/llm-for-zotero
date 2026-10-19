@@ -5,6 +5,7 @@ export type ProviderCardKind =
   | "codex_app_server"
   | "codex_direct"
   | "copilot"
+  | "opencode_cli"
   | "webchat";
 
 export type ProviderCardModeSpec = Readonly<{
@@ -44,6 +45,13 @@ const PROVIDER_CARD_FACTORIES = {
     showProviderPreset: false,
     showApiKey: false,
     showCopilotLogin: true,
+    compactBody: false,
+  }),
+  opencode_cli: () => ({
+    kind: "opencode_cli",
+    showProviderPreset: false,
+    showApiKey: false,
+    showCopilotLogin: false,
     compactBody: false,
   }),
   webchat: () => ({

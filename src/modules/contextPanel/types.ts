@@ -336,6 +336,7 @@ export type SendQuestionOptions = {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: import("../../utils/providerProtocol").ProviderProtocol;
   modelEntryId?: string;
@@ -424,6 +425,7 @@ export type EditRetryOptions = {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: import("../../utils/providerProtocol").ProviderProtocol;
   modelEntryId?: string;

@@ -126,6 +126,7 @@ import {
   isAutoLockedGlobalConversation,
   getConversationWriteGeneration,
 } from "./state";
+import { clearOpenCodeSessionId } from "../../opencode/session";
 import { paperTextStore } from "../../services/paperContent/paperTextStore";
 import {
   setStatus,
@@ -5491,6 +5492,14 @@ export function setupHandlers(
             webChatModeController.rememberModelBeforeEnteringWebChat();
           }
 
+          const previousSelectedEntry = panelChoices.getSelectedModelEntry();
+          if (
+            entry.authMode !== "opencode_cli" ||
+            previousSelectedEntry?.entryId !== entry.entryId
+          ) {
+            clearOpenCodeSessionId(getConversationKey(item));
+          }
+
           panelChoices.setSelectedModelEntry(entry.entryId);
 
           // Keep the relay target synchronized when switching between webchat
@@ -7412,6 +7421,11 @@ export function setupHandlers(
     buildQuestionWithSelectedTextContexts,
     buildModelPromptWithFileContext,
     isAgentMode: () => getCurrentRuntimeMode() === "agent",
+    enableAgentModeForTurn: () => {
+      if (!getAgentModeEnabled()) return false;
+      setCurrentRuntimeMode("agent");
+      return true;
+    },
     isGlobalMode,
     isClaudeConversationSystem,
     isCodexConversationSystem,

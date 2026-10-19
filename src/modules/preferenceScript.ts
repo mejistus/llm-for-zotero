@@ -8,6 +8,10 @@ import {
 import { config } from "../../package.json";
 import { t } from "../utils/i18n";
 import { WEBCHAT_TARGETS } from "../webchat/types";
+import { DEFAULT_OPENCODE_MODEL } from "../opencode/constants";
+import { loadOpenCodeModels } from "../opencode/models";
+import { runOpenCodeConnectionTest } from "../opencode/process";
+import { setOpenCodeAutoApproveEnabled } from "../opencode/prefs";
 import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_TEMPERATURE,
@@ -919,6 +923,7 @@ function normalizeAuthMode(value: unknown): ModelProviderAuthMode {
   if (value === "codex_auth") return "codex_auth";
   if (value === "codex_app_server") return "codex_app_server";
   if (value === "copilot_auth") return "copilot_auth";
+  if (value === "opencode_cli") return "opencode_cli";
   return "api_key";
 }
 
@@ -1862,6 +1867,10 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       webchatOption.value = "webchat";
       webchatOption.textContent = t("WebChat");
       webchatOption.selected = group.authMode === "webchat";
+      const opencodeOption = el(doc, "option") as HTMLOptionElement;
+      opencodeOption.value = "opencode_cli";
+      opencodeOption.textContent = t("OpenCode CLI");
+      opencodeOption.selected = group.authMode === "opencode_cli";
       authModeSelect.append(apiKeyOption);
       if (group.authMode === "codex_app_server") {
         authModeSelect.append(codexAppServerOption);
@@ -1872,7 +1881,7 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       ) {
         authModeSelect.append(codexOption);
       }
-      authModeSelect.append(copilotOption, webchatOption);
+      authModeSelect.append(opencodeOption, copilotOption, webchatOption);
       authModeSelect.addEventListener("change", () => {
         const nextAuthMode = normalizeAuthMode(authModeSelect.value);
         groups[groupIndex] = transitionProviderAuthMode(group, nextAuthMode);
@@ -1887,13 +1896,19 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
               "%targets%",
               WEBCHAT_TARGETS.map((wt) => wt.label).join(" / "),
             )
-          : group.authMode === "copilot_auth"
-            ? t(COPILOT_API_HELPER_TEXT)
-            : group.authMode === "codex_auth"
-              ? t(LEGACY_CODEX_AUTH_HELPER_TEXT)
-              : group.authMode === "codex_app_server"
-                ? t(CODEX_APP_SERVER_HELPER_TEXT)
-                : "";
+          : group.authMode === "opencode_cli"
+            ? `${t(
+                "Runs the local OpenCode CLI as an agent. It uses OpenCode's own login/model config; edit the model below or fetch the models reported by the CLI.",
+              )} ${t(
+                "Requires Agent mode. Zotero library tools also require the native MCP tools toggle in the Agent tab.",
+              )}`
+            : group.authMode === "copilot_auth"
+              ? t(COPILOT_API_HELPER_TEXT)
+              : group.authMode === "codex_auth"
+                ? t(LEGACY_CODEX_AUTH_HELPER_TEXT)
+                : group.authMode === "codex_app_server"
+                  ? t(CODEX_APP_SERVER_HELPER_TEXT)
+                  : "";
       authModeControl.append(authModeSelect);
       if (authModeHelperText) {
         authModeControl.append(prefHint(doc, authModeHelperText));
@@ -1908,12 +1923,15 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         group.authMode !== "codex_auth" &&
         group.authMode !== "codex_app_server" &&
         group.authMode !== "copilot_auth" &&
+        group.authMode !== "opencode_cli" &&
         selectedPresetId === "customized";
       // Local runtimes serve unauthenticated, so the key field, the connection
       // test and the model catalog must all work with the key left blank.
       const presetRequiresApiKey =
-        group.authMode !== "api_key" ||
-        providerPresetRequiresApiKey(selectedPresetId);
+        group.authMode === "opencode_cli"
+          ? false
+          : group.authMode !== "api_key" ||
+            providerPresetRequiresApiKey(selectedPresetId);
       group.providerProtocol = resolveSelectedProtocol(group, selectedPresetId);
 
       if (group.authMode === "codex_auth") {
@@ -2066,20 +2084,24 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         control: apiUrlControl,
       } = prefField(
         doc,
-        group.authMode === "codex_app_server"
-          ? t("Codex CLI path")
-          : t("API URL"),
+        group.authMode === "opencode_cli"
+          ? t("OpenCode CLI path")
+          : group.authMode === "codex_app_server"
+            ? t("Codex CLI path")
+            : t("API URL"),
       );
       const apiUrlInput = createElement(doc, "input", "llm-pref-input");
       apiUrlInput.id = `${config.addonRef}-api-base-${group.id}`;
       apiUrlLabel.setAttribute("for", apiUrlInput.id);
       apiUrlInput.type = "text";
       apiUrlInput.placeholder =
-        group.authMode === "codex_app_server"
-          ? t("Optional absolute path to codex executable")
-          : group.authMode === "copilot_auth"
-            ? DEFAULT_COPILOT_API_BASE
-            : selectedPreset?.defaultApiBase || "https://api.openai.com/v1";
+        group.authMode === "opencode_cli"
+          ? "opencode (PATH)"
+          : group.authMode === "codex_app_server"
+            ? t("Optional absolute path to codex executable")
+            : group.authMode === "copilot_auth"
+              ? DEFAULT_COPILOT_API_BASE
+              : selectedPreset?.defaultApiBase || "https://api.openai.com/v1";
       apiUrlInput.value = group.apiBase || "";
       apiUrlInput.readOnly =
         group.authMode !== "codex_app_server" &&
@@ -2099,6 +2121,12 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       const modelPickerSyncers: Array<() => void> = [];
       apiUrlInput.addEventListener("input", () => {
         if (group.authMode === "webchat") return;
+        if (group.authMode === "opencode_cli") {
+          group.apiBase = apiUrlInput.value;
+          persistGroups(groups);
+          syncAddProviderBtn();
+          return;
+        }
         if (!group.presetIdOverride) {
           group.presetIdOverride = pinProviderPresetIdOnUrlEdit(group);
         }
@@ -2112,11 +2140,15 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       });
       const apiUrlHelper = prefHint(
         doc,
-        group.authMode === "codex_app_server"
-          ? t(getCodexAppServerPathHelperText())
-          : group.authMode === "copilot_auth"
-            ? t(COPILOT_API_HELPER_TEXT)
-            : getPresetSelectHelperText(selectedPresetId),
+        group.authMode === "opencode_cli"
+          ? t(
+              "Leave blank to resolve opencode from PATH. Run `opencode auth login` before using this provider.",
+            )
+          : group.authMode === "codex_app_server"
+            ? t(getCodexAppServerPathHelperText())
+            : group.authMode === "copilot_auth"
+              ? t(COPILOT_API_HELPER_TEXT)
+              : getPresetSelectHelperText(selectedPresetId),
       );
       apiUrlControl.append(apiUrlInput, apiUrlHelper);
 
@@ -2165,9 +2197,54 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       apiKeyControl.append(apiKeyInput);
       if (
         group.authMode === "codex_app_server" ||
-        group.authMode === "copilot_auth"
+        group.authMode === "copilot_auth" ||
+        group.authMode === "opencode_cli"
       ) {
         apiKeyWrap.style.display = "none";
+      }
+
+      // ── OpenCode tools ───────────────────────────────────────────
+      let openCodeToolsWrap: HTMLDivElement | undefined;
+      if (group.authMode === "opencode_cli") {
+        const { wrap: openCodeToolsFieldWrap, control: openCodeToolsControl } =
+          prefField(doc, t("OpenCode tools"));
+        const autoApproveRow = createElement(doc, "label", "llm-pref-line");
+        autoApproveRow.style.cursor = "pointer";
+        const autoApproveInput = createElement(doc, "input");
+        autoApproveInput.type = "checkbox";
+        autoApproveInput.checked = group.openCodeAutoApprove === true;
+        autoApproveInput.style.margin = "0";
+        autoApproveInput.addEventListener("change", () => {
+          if (autoApproveInput.checked) {
+            group.openCodeAutoApprove = true;
+          } else {
+            delete group.openCodeAutoApprove;
+          }
+          setOpenCodeAutoApproveEnabled(autoApproveInput.checked);
+          persistGroups(groups);
+        });
+        autoApproveRow.append(
+          autoApproveInput,
+          createElement(doc, "span", undefined, {
+            textContent: t("Auto-approve tools (--auto)"),
+          }),
+        );
+        openCodeToolsControl.append(
+          autoApproveRow,
+          prefHint(
+            doc,
+            t(
+              "Auto-approve lets OpenCode run the tools it asks for without an interactive prompt, including shell commands and Zotero write tools. Leave it off for read-only Zotero access.",
+            ),
+          ),
+          prefHint(
+            doc,
+            t(
+              "The auto-approve default applies to newly added OpenCode providers; this provider keeps its own setting.",
+            ),
+          ),
+        );
+        openCodeToolsWrap = openCodeToolsFieldWrap;
       }
 
       // ── Copilot Login ────────────────────────────────────────────
@@ -2495,6 +2572,8 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         title: t("Models"),
         addTitle: t("Add model"),
       });
+      const openCodeModelsDatalistId = `${config.addonRef}-opencode-models-${group.id}`;
+      const openCodeModelInputs: HTMLInputElement[] = [];
       if (group.authMode === "webchat") {
         // [webchat] Replace "+" with a "Fetch Models" button that adds all webchat targets
         addModelBtn.style.display = "none";
@@ -2522,6 +2601,64 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
           }
         });
         modelsHeaderRow.insertBefore(fetchModelsBtn, addModelBtn);
+      }
+      if (group.authMode === "opencode_cli") {
+        const openCodeModelsDatalist = createElement(doc, "datalist");
+        openCodeModelsDatalist.id = openCodeModelsDatalistId;
+        modelsWrap.appendChild(openCodeModelsDatalist);
+
+        const fetchOpenCodeModelsBtn = createElement(
+          doc,
+          "button",
+          "llm-pref-button llm-pref-button--accent",
+          { type: "button", textContent: t("Fetch OpenCode models") },
+        );
+        const fetchOpenCodeModelsStatus = prefHint(doc, "");
+        fetchOpenCodeModelsBtn.addEventListener("click", async () => {
+          fetchOpenCodeModelsBtn.disabled = true;
+          fetchOpenCodeModelsStatus.textContent = t("Fetching models…");
+          fetchOpenCodeModelsStatus.style.color = "var(--fill-secondary, #888)";
+          try {
+            const models = await loadOpenCodeModels({
+              cliPath: group.apiBase,
+              force: true,
+            });
+            openCodeModelsDatalist.replaceChildren();
+            for (const model of models) {
+              const option = doc.createElement("option");
+              option.value = model;
+              openCodeModelsDatalist.appendChild(option);
+            }
+            fetchOpenCodeModelsStatus.textContent = t(
+              "Loaded %n OpenCode models. Pick one in the model field.",
+            ).replace("%n", String(models.length));
+            fetchOpenCodeModelsStatus.style.color = "green";
+            const firstEntry = group.models[0];
+            if (firstEntry && !firstEntry.model.includes("/")) {
+              firstEntry.model = models.includes(DEFAULT_OPENCODE_MODEL)
+                ? DEFAULT_OPENCODE_MODEL
+                : models[0] || DEFAULT_OPENCODE_MODEL;
+              persistGroups(groups);
+              const visibleInput = openCodeModelInputs[0];
+              if (visibleInput) visibleInput.value = firstEntry.model;
+              syncAddModelBtn();
+              syncAddProviderBtn();
+            }
+          } catch (_err) {
+            fetchOpenCodeModelsStatus.textContent = t(
+              "Couldn't fetch OpenCode models — type the model name instead.",
+            );
+            fetchOpenCodeModelsStatus.style.color =
+              "var(--fill-secondary, #888)";
+          } finally {
+            fetchOpenCodeModelsBtn.disabled = false;
+          }
+        });
+        modelsHeaderRow.insertBefore(fetchOpenCodeModelsBtn, addModelBtn);
+        modelsWrap.insertBefore(
+          fetchOpenCodeModelsStatus,
+          openCodeModelsDatalist,
+        );
       }
 
       const syncAddModelBtn = () =>
@@ -2615,6 +2752,10 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         modelInput.value = modelEntry.model;
         modelInput.placeholder =
           modelIndex === 0 ? profile.modelPlaceholder : "";
+        if (group.authMode === "opencode_cli") {
+          modelInput.setAttribute("list", openCodeModelsDatalistId);
+          openCodeModelInputs.push(modelInput);
+        }
 
         const advGearBtn = iconBtn(doc, "⚙", t("Advanced options"));
 
@@ -3018,6 +3159,21 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
           statusLine.style.color = "var(--fill-secondary, #888)";
 
           try {
+            if (group.authMode === "opencode_cli") {
+              const modelName = (
+                modelEntry.model ||
+                profile.defaultModel ||
+                ""
+              ).trim();
+              if (!modelName) throw new Error(t("Model name is required"));
+              const result = await runOpenCodeConnectionTest({
+                cliPath: group.apiBase.trim(),
+                model: modelName,
+              });
+              statusLine.textContent = `${t("✓ Success — model says: ")}"${result.reply}"`;
+              statusLine.style.color = "green";
+              return;
+            }
             const authMode = normalizeAuthMode(group.authMode);
             const apiBase = (
               group.apiBase.trim() ||
@@ -3154,6 +3310,15 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       } else if (group.authMode === "codex_app_server") {
         cardBody.append(
           connectionSection(doc, [authModeWrap, apiUrlWrap]),
+          modelsWrap,
+        );
+      } else if (group.authMode === "opencode_cli") {
+        cardBody.append(
+          connectionSection(doc, [
+            authModeWrap,
+            apiUrlWrap,
+            ...(openCodeToolsWrap ? [openCodeToolsWrap] : []),
+          ]),
           modelsWrap,
         );
       } else {

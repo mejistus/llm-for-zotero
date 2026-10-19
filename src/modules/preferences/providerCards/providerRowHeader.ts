@@ -64,6 +64,12 @@ function describeAuthFamily(group: ModelProviderGroup): AuthFamily {
         tag: t("GitHub Copilot"),
         name: t("GitHub Copilot"),
       };
+    case "opencode_cli":
+      return {
+        iconModifier: "preset-opencode",
+        tag: t("OpenCode CLI"),
+        name: t("OpenCode"),
+      };
     case "webchat": {
       const targets = namedModels(group).map(getWebChatTargetByModelName);
       const target = targets[0];
@@ -115,6 +121,7 @@ function hasCredentials(group: ModelProviderGroup): boolean {
     // nothing here to check.
     case "codex_auth":
     case "codex_app_server":
+    case "opencode_cli":
     case "webchat":
       return true;
     case "copilot_auth":

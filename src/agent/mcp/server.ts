@@ -207,7 +207,9 @@ type ZoteroMcpScopeMetadata = {
     action: import("../types").AgentPendingAction,
   ) => Promise<import("../types").AgentConfirmationResolution>;
   clarificationHistory?: AgentRuntimeRequest["clarificationHistory"];
-  runtimeAuthority?: "claude" | "codex";
+  runtimeAuthority?: "claude" | "codex" | "opencode";
+  /** Hide write tools from a runtime that cannot ask for approval. */
+  readOnly?: boolean;
   /** Host lifecycle signal; never supplied by MCP tool arguments. */
   signal?: AbortSignal;
   /** Durable provider run that owns direct document artifacts. */
@@ -760,9 +762,12 @@ function normalizeActiveScope(
   }
   const metadata: ZoteroMcpScopeMetadata = {
     runtimeAuthority:
-      scope.runtimeAuthority === "claude" || scope.runtimeAuthority === "codex"
+      scope.runtimeAuthority === "claude" ||
+      scope.runtimeAuthority === "codex" ||
+      scope.runtimeAuthority === "opencode"
         ? scope.runtimeAuthority
         : undefined,
+    readOnly: scope.readOnly === true,
     runId: normalizeText(scope.runId, 256),
     sourceMessageTimestamp: Number.isFinite(scope.sourceMessageTimestamp)
       ? Math.floor(Number(scope.sourceMessageTimestamp))
@@ -1366,11 +1371,19 @@ function hasRawPdfScope(scope: ZoteroMcpActiveScope | null): boolean {
   return getMcpScopePapers(scope, ["raw_pdf"]).length > 0;
 }
 
+export function isMcpToolReadOnlyVisible(
+  toolName: string,
+  scope: { readOnly?: boolean } | null,
+): boolean {
+  return !(scope?.readOnly === true && CURATED_WRITE_TOOL_NAMES.has(toolName));
+}
+
 function isMcpToolVisibleInScope(
   tool: ToolSpec,
   scope: ZoteroMcpActiveScope | null,
 ): boolean {
   if (!isMcpExposedTool(tool)) return false;
+  if (!isMcpToolReadOnlyVisible(tool.name, scope)) return false;
   if (tool.name === "request_user_input")
     return Boolean(scope?.requestInteraction);
   // Of the control tools only submit_document serves an external turn:
@@ -2215,6 +2228,15 @@ async function handleToolsCall(
     const text = replacement
       ? `Unknown tool: ${name}. This tool was renamed; call ${replacement} instead.`
       : `Zotero MCP tool ${name} is not available through the Zotero MCP server.`;
+    completeActivity({ ok: false, error: text });
+    return {
+      content: [{ type: "text", text }],
+      isError: true,
+    };
+  }
+
+  if (!isMcpToolReadOnlyVisible(name, scope)) {
+    const text = `Zotero MCP tool ${name} is not available through the Zotero MCP server.`;
     completeActivity({ ok: false, error: text });
     return {
       content: [{ type: "text", text }],

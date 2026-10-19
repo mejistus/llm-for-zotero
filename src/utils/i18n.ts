@@ -827,6 +827,28 @@ const zhCN: Record<string, string> = {
   "Codex did not return any available models.": "Codex 未返回任何可用模型。",
   "Fetch Models": "获取模型",
   WebChat: "WebChat",
+  "OpenCode CLI": "OpenCode CLI",
+  OpenCode: "OpenCode",
+  "Runs the local OpenCode CLI as an agent. It uses OpenCode's own login/model config; edit the model below or fetch the models reported by the CLI.":
+    "将本地 OpenCode CLI 作为 Agent 运行。它使用 OpenCode 自己的登录与模型配置；可在下方编辑模型，或获取 CLI 报告的模型列表。",
+  "Requires Agent mode. Zotero library tools also require the native MCP tools toggle in the Agent tab.":
+    "需要 Agent 模式。Zotero 文献库工具还需要在 Agent 页开启原生 MCP 工具。",
+  "OpenCode CLI path": "OpenCode CLI 路径",
+  "Leave blank to resolve opencode from PATH. Run `opencode auth login` before using this provider.":
+    "留空则从 PATH 解析 opencode。使用前请先运行 `opencode auth login`。",
+  "OpenCode tools": "OpenCode 工具",
+  "Auto-approve tools (--auto)": "自动批准工具（--auto）",
+  "Auto-approve lets OpenCode run the tools it asks for without an interactive prompt, including shell commands and Zotero write tools. Leave it off for read-only Zotero access.":
+    "自动批准会让 OpenCode 无需交互提示即可运行其请求的工具，包括 shell 命令和 Zotero 写入工具。关闭此项可获得只读的 Zotero 访问。",
+  "The auto-approve default applies to newly added OpenCode providers; this provider keeps its own setting.":
+    "自动批准默认值仅应用于新添加的 OpenCode 服务商；当前服务商保留自己的设置。",
+  "Fetch OpenCode models": "获取 OpenCode 模型",
+  "Loaded %n OpenCode models. Pick one in the model field.":
+    "已加载 %n 个 OpenCode 模型。请在模型字段中选择一个。",
+  "Couldn't fetch OpenCode models — type the model name instead.":
+    "无法获取 OpenCode 模型，请直接输入模型名称。",
+  "OpenCode CLI requires Agent mode.": "OpenCode CLI 需要 Agent 模式。",
+  "Model name is required": "模型名称不能为空",
   "Provider A": "服务商 A",
   "Provider B": "服务商 B",
   "Provider C": "服务商 C",

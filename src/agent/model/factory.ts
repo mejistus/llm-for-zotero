@@ -17,6 +17,7 @@ import { OpenAIChatCompatAgentAdapter } from "./openaiCompatible";
 import { AnthropicMessagesAgentAdapter } from "./anthropicMessages";
 import { GeminiNativeAgentAdapter } from "./geminiNative";
 import { OllamaNativeAgentAdapter } from "./ollamaNative";
+import { OpenCodeCliAgentAdapter } from "../../opencode/adapter";
 
 class CodexAppServerNativeOnlyAgentAdapter implements AgentModelAdapter {
   getCapabilities(_request: AgentRuntimeRequest): AgentModelCapabilities {
@@ -56,6 +57,9 @@ export function resolveRequestProviderProtocol(
 export function createAgentModelAdapter(
   request: AgentRuntimeRequest,
 ): AgentModelAdapter {
+  if (request.authMode === "opencode_cli") {
+    return new OpenCodeCliAgentAdapter();
+  }
   if (request.authMode === "codex_app_server") {
     return new CodexAppServerNativeOnlyAgentAdapter();
   }

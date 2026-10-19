@@ -320,6 +320,7 @@ import {
 import { positionMenuAtPointer } from "./menuPositioning";
 import { FULL_PDF_UNSUPPORTED_MESSAGE } from "./pdfSupportMessages";
 import {
+  getAgentModeEnabled,
   getAvailableModelEntries,
   getLastReasoningExpanded,
   getStringPref,
@@ -430,6 +431,7 @@ import {
   retryAgentTurn,
   type AgentEngineDeps,
 } from "./agentMode/agentEngine";
+import { clearOpenCodeSessionId } from "../../opencode/session";
 import {
   buildQueuedFollowUpThreadKey,
   scheduleQueuedFollowUpDrainForThread,
@@ -3718,6 +3720,7 @@ function isCodexAppServerConversationRequest(params: {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelProviderLabel?: string;
@@ -3738,6 +3741,7 @@ function resolveEffectiveConversationSystem(params: {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelProviderLabel?: string;
@@ -3761,6 +3765,7 @@ export function resolveEffectiveRequestConfig(params: {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelEntryId?: string;
@@ -3872,7 +3877,9 @@ export function resolveEffectiveRequestConfig(params: {
           ? "codex_app_server"
           : fallbackEntry?.authMode === "copilot_auth"
             ? "copilot_auth"
-            : "api_key");
+            : fallbackEntry?.authMode === "opencode_cli"
+              ? "opencode_cli"
+              : "api_key");
   const providerProtocol =
     params.providerProtocol ||
     explicitEntry?.providerProtocol ||
@@ -3908,6 +3915,32 @@ export function resolveEffectiveRequestConfig(params: {
     reasoning,
     advanced,
   };
+}
+
+function isOpenCodeCliRequestConfig(
+  config: Pick<EffectiveRequestConfig, "authMode" | "modelProviderLabel">,
+): boolean {
+  return (
+    config.authMode === "opencode_cli" ||
+    config.modelProviderLabel === "OpenCode"
+  );
+}
+
+function ensureOpenCodeCliAgentMode(params: {
+  body: Element;
+  item: Zotero.Item;
+  config: Pick<EffectiveRequestConfig, "authMode" | "modelProviderLabel">;
+}): boolean {
+  if (!isOpenCodeCliRequestConfig(params.config)) return true;
+  if (!getAgentModeEnabled()) {
+    const status = getPanelRequestUI(params.body).status;
+    if (status) {
+      setStatus(status, t("OpenCode CLI requires Agent mode."), "error");
+    }
+    return false;
+  }
+  selectedRuntimeModeCache.set(getConversationKey(params.item), "agent");
+  return true;
 }
 
 function resolveCodexNativeConversationScope(params: {
@@ -5541,6 +5574,7 @@ export async function editLatestUserMessageAndRetry(
   }
   await ensureConversationLoaded(item, { body });
   const conversationKey = getConversationKey(item);
+  clearOpenCodeSessionId(conversationKey);
   if (requestId !== undefined) {
     if (
       conversationKey !== initialConversationKey &&
@@ -5902,6 +5936,7 @@ export async function retryLatestAssistantResponse(
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat",
   providerProtocol?: ProviderProtocol,
   modelEntryId?: string,
@@ -5921,8 +5956,50 @@ export async function retryLatestAssistantResponse(
   ) {
     return;
   }
+  const guardConfig = resolveEffectiveRequestConfig({
+    item,
+    model,
+    apiBase,
+    apiKey,
+    authMode,
+    providerProtocol,
+    modelEntryId,
+    modelProviderLabel,
+    reasoning,
+    advanced,
+    surface: resolveSelectionSurfaceForBody(body),
+  });
+  if (isOpenCodeCliRequestConfig(guardConfig)) {
+    if (
+      !ensureOpenCodeCliAgentMode({
+        body,
+        item,
+        config: guardConfig,
+      })
+    ) {
+      return false;
+    }
+    await retryLatestAgentResponse(
+      body,
+      item,
+      guardConfig.model,
+      guardConfig.apiBase,
+      guardConfig.apiKey,
+      guardConfig.authMode,
+      guardConfig.providerProtocol,
+      guardConfig.modelEntryId,
+      guardConfig.modelProviderLabel,
+      guardConfig.reasoning,
+      guardConfig.advanced,
+      modelAttachmentsOverride,
+      requestId,
+      onProviderDispatch,
+    );
+    return;
+  }
   const ui = getPanelRequestUI(body);
   const initialConversationKey = getConversationKey(item);
+  clearOpenCodeSessionId(initialConversationKey);
   let thisRequestId: number;
   if (requestId !== undefined) {
     thisRequestId = requestId;
@@ -6913,6 +6990,7 @@ export async function editUserTurnAndRetry(opts: {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelEntryId?: string;
@@ -7031,6 +7109,16 @@ export async function editUserTurnAndRetry(opts: {
     advanced,
     surface: resolveSelectionSurfaceForBody(body),
   });
+  const retryIsOpenCodeCli = isOpenCodeCliRequestConfig(retryRequestConfig);
+  if (
+    !ensureOpenCodeCliAgentMode({
+      body,
+      item,
+      config: retryRequestConfig,
+    })
+  ) {
+    return false;
+  }
   const retryConversationSystem = resolveEffectiveConversationSystem({
     item,
     authMode: retryRequestConfig.authMode,
@@ -7045,8 +7133,10 @@ export async function editUserTurnAndRetry(opts: {
   const retryRuntimeMode: ChatRuntimeMode =
     retryConversationSystem === "codex"
       ? "chat"
-      : targetRuntimeMode ||
-        (history[assistantIndex]?.runMode === "agent" ? "agent" : "chat");
+      : retryIsOpenCodeCli
+        ? "agent"
+        : targetRuntimeMode ||
+          (history[assistantIndex]?.runMode === "agent" ? "agent" : "chat");
 
   // Collect subsequent pairs for persistence deletion
   const subsequentPairs: Array<{ userTs: number; assistantTs: number }> = [];
@@ -8098,6 +8188,7 @@ async function retryLatestAgentResponse(
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat",
   providerProtocol?: ProviderProtocol,
   modelEntryId?: string,
@@ -8117,6 +8208,28 @@ async function retryLatestAgentResponse(
       requireCurrentPanelOwnership(body, item, operation),
     );
   if (!isOwnershipCurrent("retry-agent-response")) return true;
+  const guardConfig = resolveEffectiveRequestConfig({
+    item,
+    model,
+    apiBase,
+    apiKey,
+    authMode,
+    providerProtocol,
+    modelEntryId,
+    modelProviderLabel,
+    reasoning,
+    advanced,
+    surface: resolveSelectionSurfaceForBody(body),
+  });
+  if (
+    !ensureOpenCodeCliAgentMode({
+      body,
+      item,
+      config: guardConfig,
+    })
+  ) {
+    return true;
+  }
   const conversationSystem = resolveEffectiveConversationSystem({
     item,
     authMode,
@@ -8127,6 +8240,7 @@ async function retryLatestAgentResponse(
   // callers that already finalized and restored make this a cheap no-op. Turn
   // entries only — a pending conversation deletion is the callers' concern.
   const agentRetryConversationKey = getConversationKey(item);
+  clearOpenCodeSessionId(agentRetryConversationKey);
   if (agentRetryConversationKey) {
     await awaitPendingTurnFinalize(
       pendingDeletionStore.finalizeTurnsForConversation(
@@ -8184,6 +8298,7 @@ async function sendAgentQuestion(opts: {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   modelEntryId?: string;

@@ -23,6 +23,7 @@ import { paperTextStore } from "../../services/paperContent/paperTextStore";
 import { TTLMap } from "../../utils/ttlMap";
 import { clearMermaidSvgCache } from "./mermaidSvgCache";
 import { clearAllTaskProgress, clearTaskProgress } from "./taskProgress/store";
+import { clearOpenCodeSessionId } from "../../opencode/session";
 import type { ConversationForkLink } from "../../shared/conversationForkLinks";
 import type { WebSourceAnchor } from "../../webAccess/types";
 export {
@@ -363,6 +364,7 @@ export function clearConversationOwnedRuntimeState(
   const key = normalizeConversationKey(conversationKey);
   if (!key) return;
 
+  clearOpenCodeSessionId(key);
   bumpConversationWriteGeneration(key);
 
   chatHistory.delete(key);

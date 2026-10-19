@@ -16,6 +16,8 @@ import {
   resolveProviderPresetId,
   getProviderPreset,
 } from "../../utils/providerPresets";
+import { DEFAULT_OPENCODE_MODEL } from "../../opencode/constants";
+import { isOpenCodeAutoApproveEnabled } from "../../opencode/prefs";
 
 export const DEFAULT_COPILOT_API_BASE = "https://api.githubcopilot.com";
 
@@ -31,7 +33,8 @@ function configurableRows(group: ModelProviderGroup): ModelProviderModel[] {
   const rows =
     group.authMode === "api_key" ||
     group.authMode === "codex_app_server" ||
-    group.authMode === "copilot_auth"
+    group.authMode === "copilot_auth" ||
+    group.authMode === "opencode_cli"
       ? group.models.map((row) => ({ ...row }))
       : group.models.map((row) => ({
           ...createProviderModelEntry(row.model),
@@ -58,7 +61,11 @@ function webChatRows(group: ModelProviderGroup) {
 }
 
 function defaultApiKeyProtocol(group: ModelProviderGroup) {
-  if (group.authMode === "codex_auth" || group.authMode === "webchat") {
+  if (
+    group.authMode === "codex_auth" ||
+    group.authMode === "opencode_cli" ||
+    group.authMode === "webchat"
+  ) {
     return "openai_chat_compat" as const;
   }
   const presetId = resolveProviderPresetId({ ...group, authMode: "api_key" });
@@ -103,14 +110,17 @@ export function transitionProviderAuthMode(
     id: group.id,
     apiBase,
     apiKey:
-      group.authMode === "codex_auth" || group.authMode === "webchat"
+      group.authMode === "codex_auth" ||
+      group.authMode === "webchat" ||
+      configurableAuthMode === "opencode_cli"
         ? ""
         : group.apiKey,
     authMode: configurableAuthMode,
     providerProtocol:
       configurableAuthMode === "codex_app_server"
         ? "codex_responses"
-        : configurableAuthMode === "copilot_auth"
+        : configurableAuthMode === "copilot_auth" ||
+            configurableAuthMode === "opencode_cli"
           ? "openai_chat_compat"
           : defaultApiKeyProtocol(group),
     models: configurableRows(group),
@@ -121,6 +131,16 @@ export function transitionProviderAuthMode(
 
   if (configurableAuthMode === "copilot_auth" && !next.apiBase.trim()) {
     next.apiBase = DEFAULT_COPILOT_API_BASE;
+  }
+
+  if (
+    configurableAuthMode === "opencode_cli" &&
+    group.authMode !== "opencode_cli"
+  ) {
+    next.models = [createProviderModelEntry(DEFAULT_OPENCODE_MODEL)];
+    if (isOpenCodeAutoApproveEnabled()) {
+      next.openCodeAutoApprove = true;
+    }
   }
 
   return next;

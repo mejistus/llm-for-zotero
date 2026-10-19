@@ -1311,6 +1311,7 @@ export type AgentEngineDeps = {
       | "codex_auth"
       | "codex_app_server"
       | "copilot_auth"
+      | "opencode_cli"
       | "webchat";
     providerProtocol?:
       | "codex_responses"
@@ -1493,6 +1494,7 @@ export async function sendAgentTurn(
       | "codex_auth"
       | "codex_app_server"
       | "copilot_auth"
+      | "opencode_cli"
       | "webchat";
     providerProtocol?:
       | "codex_responses"
@@ -2067,6 +2069,7 @@ export async function retryAgentTurn(
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat"
     | undefined,
   providerProtocol:

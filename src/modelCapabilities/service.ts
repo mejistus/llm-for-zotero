@@ -580,6 +580,7 @@ export const CATALOG_EXCLUDED_AUTH_MODES: ReadonlySet<string> = new Set([
   "codex_auth",
   "codex_app_server",
   "copilot_auth",
+  "opencode_cli",
   "webchat",
 ]);
 

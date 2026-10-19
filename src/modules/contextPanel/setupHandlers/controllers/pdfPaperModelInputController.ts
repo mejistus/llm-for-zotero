@@ -18,6 +18,7 @@ export type PdfPaperModelInputProfile = {
     | "codex_auth"
     | "codex_app_server"
     | "copilot_auth"
+    | "opencode_cli"
     | "webchat";
   providerProtocol?: ProviderProtocol;
   inputMode?: ModelInputMode;

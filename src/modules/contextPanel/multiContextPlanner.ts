@@ -1599,6 +1599,7 @@ export async function resolveMultiContextPlan(params: {
       | "codex_auth"
       | "codex_app_server"
       | "copilot_auth"
+      | "opencode_cli"
       | "webchat"
       | undefined,
     profileOverride: params.advanced?.profileOverride,
