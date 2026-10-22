@@ -7,6 +7,7 @@ import {
 } from "./constants";
 import {
   buildOpenCodeLaunchEnvironment,
+  closeProcessStdin,
   loadOpenCodeSubprocessModule,
   readProcessStreamToString,
   waitForProcessExitCode,
@@ -289,6 +290,8 @@ export async function runOpenCodeTurn(params: {
     );
   }
 
+  await closeProcessStdin(proc);
+
   const timeoutMs = params.timeoutMs ?? OPENCODE_TURN_TIMEOUT_MS;
   let stderr = "";
   let sessionID = params.sessionID;
@@ -363,7 +366,10 @@ export async function runOpenCodeTurn(params: {
   }
 
   if (timedOut) {
-    throw new Error(`OpenCode turn timed out after ${timeoutMs}ms`);
+    const detail = tailText(stderr);
+    throw new Error(
+      `OpenCode turn timed out after ${timeoutMs}ms${detail ? `: ${detail}` : ""}`,
+    );
   }
   if (aborted) {
     throw new Error("OpenCode turn aborted");

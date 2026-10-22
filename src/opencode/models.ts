@@ -2,6 +2,7 @@ import { OPENCODE_MODEL_CACHE_TTL_MS } from "./constants";
 import { resolveOpenCodeBinaryPath } from "./binary";
 import {
   buildOpenCodeLaunchEnvironment,
+  closeProcessStdin,
   loadOpenCodeSubprocessModule,
   readProcessOutput,
   readProcessStreamToString,
@@ -57,6 +58,8 @@ export async function loadOpenCodeModels(options?: {
       }`,
     );
   }
+
+  await closeProcessStdin(proc);
 
   const stderrPromise = readProcessStreamToString(proc.stderr);
   const { stdout, exitCode } = await readProcessOutput(proc);

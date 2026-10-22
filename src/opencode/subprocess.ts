@@ -94,6 +94,23 @@ export async function loadOpenCodeSubprocessModule(): Promise<any> {
   return Subprocess;
 }
 
+/**
+ * Give the child EOF on stdin.
+ *
+ * Zotero's Subprocess always allocates a stdin pipe, and OpenCode's `run`
+ * command waits for stdin to close before starting the turn. Leaving the pipe
+ * open makes `opencode run` sit silently until the plugin's timeout fires.
+ */
+export async function closeProcessStdin(proc: any): Promise<void> {
+  try {
+    if (proc?.stdin && !proc.stdin.closed) {
+      await proc.stdin.close?.();
+    }
+  } catch {
+    void 0;
+  }
+}
+
 export async function readProcessStreamToString(stream: any): Promise<string> {
   let out = "";
   while (true) {

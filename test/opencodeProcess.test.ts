@@ -3,6 +3,7 @@ import {
   buildOpenCodeRunArgs,
   parseOpenCodeEventLine,
 } from "../src/opencode/process";
+import { closeProcessStdin } from "../src/opencode/subprocess";
 
 describe("opencode process", function () {
   it("builds run arguments in CLI order", function () {
@@ -171,5 +172,46 @@ describe("opencode process", function () {
     assert.isNull(
       parseOpenCodeEventLine(JSON.stringify({ type: "future_event" })),
     );
+  });
+});
+
+describe("opencode subprocess stdin", function () {
+  it("closes the stdin pipe so opencode run does not wait for EOF", async function () {
+    let closes = 0;
+    await closeProcessStdin({
+      stdin: {
+        closed: false,
+        close: async () => {
+          closes += 1;
+        },
+      },
+    });
+    assert.equal(closes, 1);
+  });
+
+  it("leaves an already closed pipe alone", async function () {
+    let closes = 0;
+    await closeProcessStdin({
+      stdin: {
+        closed: true,
+        close: async () => {
+          closes += 1;
+        },
+      },
+    });
+    assert.equal(closes, 0);
+  });
+
+  it("tolerates a missing or failing stdin pipe", async function () {
+    await closeProcessStdin(undefined);
+    await closeProcessStdin({});
+    await closeProcessStdin({
+      stdin: {
+        closed: false,
+        close: async () => {
+          throw new Error("gone");
+        },
+      },
+    });
   });
 });
