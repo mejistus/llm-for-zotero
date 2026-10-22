@@ -627,8 +627,9 @@ manage OpenCode logins, providers, or other user-level settings.
    also add one directly in **AI Providers**.
 3. Set **Auth mode** to **OpenCode CLI**. Leave **OpenCode CLI path** blank to
    resolve `opencode` from `PATH`.
-4. Click **Fetch OpenCode models** and pick a model, for example
-   `opencode-go/deepseek-v4.1-flash`. You can also type a model ID directly.
+4. Click **Fetch OpenCode models**. The models reported by the CLI appear as a
+   clickable list under the button; pick one, or type a model ID directly, for
+   example `opencode-go/deepseek-v4.1-flash`.
 5. Click **Test** to verify the CLI and model, then enable **Agent mode** and
    select the OpenCode model in the chat header.
 

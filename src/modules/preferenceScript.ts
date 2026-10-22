@@ -530,6 +530,15 @@ function registerLiveProfileEditor(entry: LiveProfileEditor) {
 // ── Provider model select (fetch & choose) ─────────────────────────
 
 /**
+ * Last successful OpenCode model fetch, kept across preference re-renders so
+ * the visible model list does not disappear when the pane repaints. Keyed by
+ * the configured CLI path so switching binaries cannot show another CLI's
+ * catalog.
+ */
+let cachedOpenCodeModelList: { cliPath: string; models: string[] } | null =
+  null;
+
+/**
  * Replace a provider-card model input with a native dropdown listing the
  * provider's live model catalog plus a trailing "Customized…" option.
  * Choosing "Customized…" reveals the classic text input for manual entry;
@@ -2609,7 +2618,59 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
       if (group.authMode === "opencode_cli") {
         const openCodeModelsDatalist = createElement(doc, "datalist");
         openCodeModelsDatalist.id = openCodeModelsDatalistId;
-        modelsWrap.appendChild(openCodeModelsDatalist);
+        const openCodeModelsList = createElement(
+          doc,
+          "div",
+          "llm-pref-opencode-models",
+        );
+        const openCodeModelsEmptyHint = prefHint(
+          doc,
+          t("Fetch the OpenCode models to see what this CLI can run."),
+        );
+        modelsWrap.append(
+          openCodeModelsDatalist,
+          openCodeModelsList,
+          openCodeModelsEmptyHint,
+        );
+
+        const openCodeCliPath = () => (group.apiBase || "").trim();
+
+        const renderOpenCodeModelList = (models: string[]) => {
+          openCodeModelsList.replaceChildren();
+          const activeModel = (group.models[0]?.model || "").trim();
+          for (const model of models) {
+            const item = createElement(
+              doc,
+              "button",
+              "llm-pref-opencode-model-item",
+              { type: "button", textContent: model, title: model },
+            );
+            item.dataset.model = model;
+            item.dataset.active = String(model === activeModel);
+            item.addEventListener("click", () => {
+              const firstEntry = group.models[0];
+              if (!firstEntry) return;
+              firstEntry.model = model;
+              persistGroups(groups);
+              const visibleInput = openCodeModelInputs[0];
+              if (visibleInput) visibleInput.value = model;
+              syncAddModelBtn();
+              syncAddProviderBtn();
+              renderOpenCodeModelList(models);
+            });
+            openCodeModelsList.appendChild(item);
+          }
+          const hasModels = models.length > 0;
+          openCodeModelsList.style.display = hasModels ? "" : "none";
+          openCodeModelsEmptyHint.style.display = hasModels ? "none" : "";
+        };
+
+        if (
+          cachedOpenCodeModelList &&
+          cachedOpenCodeModelList.cliPath === openCodeCliPath()
+        ) {
+          renderOpenCodeModelList(cachedOpenCodeModelList.models);
+        }
 
         const fetchOpenCodeModelsBtn = createElement(
           doc,
@@ -2633,8 +2694,10 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
               option.value = model;
               openCodeModelsDatalist.appendChild(option);
             }
+            cachedOpenCodeModelList = { cliPath: openCodeCliPath(), models };
+            renderOpenCodeModelList(models);
             fetchOpenCodeModelsStatus.textContent = t(
-              "Loaded %n OpenCode models. Pick one in the model field.",
+              "Loaded %n OpenCode models. Click one to use it, or type a model ID.",
             ).replace("%n", String(models.length));
             fetchOpenCodeModelsStatus.style.color = "green";
             const firstEntry = group.models[0];
@@ -2647,6 +2710,7 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
               if (visibleInput) visibleInput.value = firstEntry.model;
               syncAddModelBtn();
               syncAddProviderBtn();
+              renderOpenCodeModelList(models);
             }
           } catch (_err) {
             fetchOpenCodeModelsStatus.textContent = t(

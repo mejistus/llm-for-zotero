@@ -842,9 +842,11 @@ const zhCN: Record<string, string> = {
     "自动批准会让 OpenCode 无需交互提示即可运行其请求的工具，包括 shell 命令和 Zotero 写入工具。关闭此项可获得只读的 Zotero 访问。",
   "The auto-approve default applies to newly added OpenCode providers; this provider keeps its own setting.":
     "自动批准默认值仅应用于新添加的 OpenCode 服务商；当前服务商保留自己的设置。",
+  "Fetch the OpenCode models to see what this CLI can run.":
+    "先获取 OpenCode 模型，查看此 CLI 可运行的模型列表。",
   "Fetch OpenCode models": "获取 OpenCode 模型",
-  "Loaded %n OpenCode models. Pick one in the model field.":
-    "已加载 %n 个 OpenCode 模型。请在模型字段中选择一个。",
+  "Loaded %n OpenCode models. Click one to use it, or type a model ID.":
+    "已加载 %n 个 OpenCode 模型。点击即可使用，也可直接输入模型 ID。",
   "Couldn't fetch OpenCode models — type the model name instead.":
     "无法获取 OpenCode 模型，请直接输入模型名称。",
   "OpenCode CLI requires Agent mode.": "OpenCode CLI 需要 Agent 模式。",

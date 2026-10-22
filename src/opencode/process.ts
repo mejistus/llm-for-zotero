@@ -208,15 +208,11 @@ export function buildOpenCodeRunArgs(params: {
   prompt: string;
   sessionID?: string;
   autoApprove?: boolean;
-  cwd: string;
 }): string[] {
   return [
     "run",
-    "--pure",
     "--format",
     "json",
-    "--dir",
-    params.cwd,
     "--model",
     params.model,
     ...(params.sessionID ? ["--session", params.sessionID] : []),
@@ -273,7 +269,6 @@ export async function runOpenCodeTurn(params: {
     prompt: params.prompt,
     sessionID: params.sessionID,
     autoApprove: params.autoApprove,
-    cwd: params.cwd,
   });
   const Subprocess = await loadOpenCodeSubprocessModule();
   let proc: any;
@@ -281,6 +276,7 @@ export async function runOpenCodeTurn(params: {
     proc = await Subprocess.call({
       command: cliPath,
       arguments: args,
+      workdir: params.cwd,
       stderr: "pipe",
       environment: buildOpenCodeLaunchEnvironment(),
       environmentAppend: true,

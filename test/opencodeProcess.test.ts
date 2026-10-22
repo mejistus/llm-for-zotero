@@ -11,15 +11,11 @@ describe("opencode process", function () {
       prompt: "hello",
       sessionID: "session-1",
       autoApprove: true,
-      cwd: "/tmp/work",
     });
     assert.deepEqual(args, [
       "run",
-      "--pure",
       "--format",
       "json",
-      "--dir",
-      "/tmp/work",
       "--model",
       "opencode-go/deepseek-v4.1-flash",
       "--session",
@@ -34,15 +30,11 @@ describe("opencode process", function () {
     const args = buildOpenCodeRunArgs({
       model: "provider/model",
       prompt: "hello",
-      cwd: "/tmp/work",
     });
     assert.deepEqual(args, [
       "run",
-      "--pure",
       "--format",
       "json",
-      "--dir",
-      "/tmp/work",
       "--model",
       "provider/model",
       "--",

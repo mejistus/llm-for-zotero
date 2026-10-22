@@ -43,6 +43,13 @@ describe("OpenCode CLI preference contract", function () {
     assert.include(script, "Auto-approve tools (--auto)");
   });
 
+  it("shows fetched models as a clickable list", function () {
+    const script = flattened("src/modules/preferenceScript.ts");
+    assert.include(script, "llm-pref-opencode-models");
+    assert.include(script, "llm-pref-opencode-model-item");
+    assert.include(script, "cachedOpenCodeModelList");
+  });
+
   it("translates the OpenCode CLI controls to Chinese", function () {
     const i18n = source("src/utils/i18n.ts");
     for (const key of ["OpenCode CLI path", "Fetch OpenCode models"]) {
