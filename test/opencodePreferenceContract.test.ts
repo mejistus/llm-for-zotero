@@ -50,6 +50,12 @@ describe("OpenCode CLI preference contract", function () {
     assert.include(script, "cachedOpenCodeModelList");
   });
 
+  it("offers a one-step OpenCode CLI provider preset", function () {
+    const script = flattened("src/modules/preferenceScript.ts");
+    assert.include(script, "OPENCODE_CLI_PRESET_OPTION_VALUE");
+    assert.include(script, 't("OpenCode CLI")');
+  });
+
   it("translates the OpenCode CLI controls to Chinese", function () {
     const i18n = source("src/utils/i18n.ts");
     for (const key of ["OpenCode CLI path", "Fetch OpenCode models"]) {

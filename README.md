@@ -625,8 +625,9 @@ manage OpenCode logins, providers, or other user-level settings.
    **OpenCode** row; its switch creates a default OpenCode provider and its
    **Configure OpenCode provider** button jumps to the provider card. You can
    also add one directly in **AI Providers**.
-3. Set **Auth mode** to **OpenCode CLI**. Leave **OpenCode CLI path** blank to
-   resolve `opencode` from `PATH`.
+3. In the provider card, choose **OpenCode CLI** from the **Provider**
+   dropdown, or set **Auth mode** to **OpenCode CLI**. Leave **OpenCode CLI
+   path** blank to resolve `opencode` from `PATH`.
 4. Click **Fetch OpenCode models**. The models reported by the CLI appear as a
    clickable list under the button; pick one, or type a model ID directly, for
    example `opencode-go/deepseek-v4.1-flash`.

@@ -1068,9 +1068,7 @@ export function getRuntimeModelEntries(): RuntimeModelEntry[] {
           ? `codex-app/${modelName}`
           : authMode === "copilot_auth"
             ? `copilot/${modelName}`
-            : authMode === "opencode_cli"
-              ? `opencode/${modelName}`
-              : modelName;
+            : modelName;
       const providerProtocol = resolveRuntimeProviderProtocol(
         group,
         modelEntry,

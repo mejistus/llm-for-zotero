@@ -136,6 +136,7 @@ import {
   getAttachmentTypeLabel,
 } from "./textUtils";
 import { sanitizeText } from "../../utils/textSanitization";
+import { shortenChatModelLabel } from "../../utils/modelDisplay";
 import { normalizeSelectedTextSource } from "../../services/context/normalizers";
 import { resolveSelectedTextAnchors } from "./selectedTextAnchors";
 import {
@@ -5140,8 +5141,9 @@ export function setupHandlers(
       getStringPref("modelPrimary") ||
       getStringPref("model") ||
       "default";
-    const currentModelDisplay =
-      selectedEntry?.displayModelLabel || currentModel;
+    const currentModelDisplay = shortenChatModelLabel(
+      selectedEntry?.displayModelLabel || currentModel,
+    );
     const currentModelHint = selectedEntry
       ? `${selectedEntry.providerLabel} · ${selectedEntry.displayModelLabel || selectedEntry.model}`
       : currentModel;

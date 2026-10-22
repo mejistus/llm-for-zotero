@@ -372,6 +372,12 @@ const COPILOT_API_HELPER_TEXT =
   "GitHub Copilot uses device-based login. Click Login to authenticate via GitHub.";
 const MAX_PROVIDER_COUNT = 10;
 const INITIAL_PROVIDER_COUNT = 4;
+/**
+ * Synthetic value in the provider preset dropdown. Choosing it switches the
+ * card to the local OpenCode CLI runtime, where the model section offers the
+ * "Fetch OpenCode models" list.
+ */
+const OPENCODE_CLI_PRESET_OPTION_VALUE = "__opencode_cli__";
 
 type ProviderProfile = {
   label: string;
@@ -1999,8 +2005,21 @@ export async function registerPrefsScripts(_window: Window | undefined | null) {
         customizedOption.value = "customized";
         customizedOption.textContent = t("Customized");
         customizedOption.selected = selectedPresetId === "customized";
-        providerPresetSelect.appendChild(customizedOption);
+        const opencodeCliOption = el(doc, "option") as HTMLOptionElement;
+        opencodeCliOption.value = OPENCODE_CLI_PRESET_OPTION_VALUE;
+        opencodeCliOption.textContent = t("OpenCode CLI");
+        providerPresetSelect.append(opencodeCliOption, customizedOption);
         providerPresetSelect.addEventListener("change", () => {
+          if (providerPresetSelect.value === OPENCODE_CLI_PRESET_OPTION_VALUE) {
+            groups[groupIndex] = transitionProviderAuthMode(
+              group,
+              "opencode_cli",
+            );
+            openProviderIds.add(group.id);
+            persistGroups(groups);
+            setTimeout(() => rerender(), 0);
+            return;
+          }
           const nextPresetId =
             normalizeProviderPresetId(providerPresetSelect.value) ??
             "customized";

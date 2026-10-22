@@ -84,10 +84,7 @@ describe("OpenCode CLI provider mode", function () {
     assert.equal(runtime.authMode, "opencode_cli");
     assert.equal(runtime.providerProtocol, "openai_chat_compat");
     assert.equal(runtime.providerLabel, "OpenCode");
-    assert.equal(
-      runtime.displayModelLabel,
-      "opencode/opencode-go/deepseek-v4.1-flash",
-    );
+    assert.equal(runtime.displayModelLabel, "opencode-go/deepseek-v4.1-flash");
     assert.equal(runtime.apiBase, "/opt/homebrew/bin/opencode");
   });
 
