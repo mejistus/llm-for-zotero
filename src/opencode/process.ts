@@ -230,6 +230,32 @@ function tailText(value: string, maxLength = 4000): string {
     : trimmed;
 }
 
+/**
+ * Pick the most useful message for a turn that produced no text.
+ *
+ * OpenCode reports provider failures as `{"type":"error"}` events on stdout
+ * and often exits with code 1 while leaving stderr empty, so the exit code
+ * alone hides the real cause (quota, auth, model routing, …).
+ */
+export function buildOpenCodeTurnFailureMessage(params: {
+  streamError?: string;
+  stderr?: string;
+  exitCode?: number;
+}): string | null {
+  const streamError = params.streamError?.trim();
+  const exitCode = params.exitCode;
+  const exitSuffix =
+    typeof exitCode === "number" && exitCode !== 0
+      ? ` (OpenCode exited with code ${exitCode})`
+      : "";
+  if (streamError) return `${streamError}${exitSuffix}`;
+  if (typeof exitCode !== "number" || exitCode === 0) return null;
+  const detail = tailText(params.stderr || "");
+  return detail
+    ? `${detail}${exitSuffix}`
+    : `OpenCode exited with code ${exitCode}`;
+}
+
 function resolveTempRoot(): string | null {
   const zotero = (
     globalThis as {
@@ -296,6 +322,7 @@ export async function runOpenCodeTurn(params: {
   let stderr = "";
   let sessionID = params.sessionID;
   let usage: OpenCodeUsage | undefined;
+  let streamError = "";
   let aborted = false;
   let timedOut = false;
   let killed = false;
@@ -329,6 +356,7 @@ export async function runOpenCodeTurn(params: {
     if (!event) return;
     if (event.sessionID) sessionID = event.sessionID;
     if (event.type === "text") textParts.push(event.text);
+    if (event.type === "error") streamError = event.message;
     if (event.type === "step" && event.usage) usage = event.usage;
     if (event.type === "usage") usage = event.usage;
     await params.onEvent?.(event);
@@ -377,11 +405,13 @@ export async function runOpenCodeTurn(params: {
 
   const exitCode = await waitForProcessExitCode(proc);
   const text = textParts.join("");
-  if (!text && typeof exitCode === "number" && exitCode !== 0) {
-    const detail = tailText(stderr);
-    throw new Error(
-      `OpenCode exited with code ${exitCode}${detail ? `: ${detail}` : ""}`,
-    );
+  if (!text) {
+    const failure = buildOpenCodeTurnFailureMessage({
+      streamError,
+      stderr,
+      exitCode,
+    });
+    if (failure) throw new Error(failure);
   }
 
   return {

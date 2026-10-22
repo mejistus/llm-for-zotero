@@ -1,6 +1,7 @@
 import { assert } from "chai";
 import {
   buildOpenCodeRunArgs,
+  buildOpenCodeTurnFailureMessage,
   parseOpenCodeEventLine,
 } from "../src/opencode/process";
 import { closeProcessStdin } from "../src/opencode/subprocess";
@@ -213,5 +214,51 @@ describe("opencode subprocess stdin", function () {
         },
       },
     });
+  });
+});
+
+describe("opencode turn failure message", function () {
+  it("prefers the provider error event over the exit code", function () {
+    assert.equal(
+      buildOpenCodeTurnFailureMessage({
+        streamError:
+          "Free usage limit reached. Subscribe to OpenCode Go to keep going.",
+        stderr: "",
+        exitCode: 1,
+      }),
+      "Free usage limit reached. Subscribe to OpenCode Go to keep going. (OpenCode exited with code 1)",
+    );
+  });
+
+  it("keeps the provider error even when the CLI exits cleanly", function () {
+    assert.equal(
+      buildOpenCodeTurnFailureMessage({
+        streamError: "Model unavailable: bogus/model",
+        exitCode: 0,
+      }),
+      "Model unavailable: bogus/model",
+    );
+  });
+
+  it("falls back to stderr when there is no error event", function () {
+    assert.equal(
+      buildOpenCodeTurnFailureMessage({
+        stderr: "boom",
+        exitCode: 1,
+      }),
+      "boom (OpenCode exited with code 1)",
+    );
+  });
+
+  it("reports the exit code when stderr is empty", function () {
+    assert.equal(
+      buildOpenCodeTurnFailureMessage({ exitCode: 1 }),
+      "OpenCode exited with code 1",
+    );
+  });
+
+  it("returns null when the turn exited cleanly", function () {
+    assert.isNull(buildOpenCodeTurnFailureMessage({ exitCode: 0 }));
+    assert.isNull(buildOpenCodeTurnFailureMessage({}));
   });
 });
